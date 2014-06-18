@@ -3,6 +3,9 @@
 	<name>org_wayround_sshgithost</name>
 	<comment></comment>
 	<projects>
+		<project>org_wayround_softengine</project>
+		<project>org_wayround_utils</project>
+		<project>org_wayround_xmpp</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>
