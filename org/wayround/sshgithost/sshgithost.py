@@ -56,10 +56,10 @@ class SFTPHandle(paramiko.sftp_handle.SFTPHandle):
     def chattr(self, attr):
 
         #        print('ca 1')
-        #os.chown(self._path, attr.st_uid, attr.st_gid, follow_symlinks=False)
+        # os.chown(self._path, attr.st_uid, attr.st_gid, follow_symlinks=False)
         #        print('ca 2')
         # TODO: fix atleast modes
-        #os.chmod(self._path, attr.st_mode, follow_symlinks=False)
+        # os.chmod(self._path, attr.st_mode, follow_symlinks=False)
 
         return
 
@@ -95,18 +95,30 @@ class SFTPHandle(paramiko.sftp_handle.SFTPHandle):
 
 class SFTPServerInterface(paramiko.sftp_si.SFTPServerInterface):
 
-    def __init__(self, server, ssh_git_host, *largs, **kwargs):
+    def __init__(
+            self,
+            server, ssh_git_host, transport,
+            *largs, **kwargs
+            ):
+        """
+        :param paramiko.sftp_server.SFTPServer server:
+        :param SSHGitHost ssh_git_host:
+        :param paramiko.transport.Transport transport:
+        """
         self._server = server
         self._ssh_git_host = ssh_git_host
+        self._transport = transport
         return
-
-    def canonicalize(self, path):
-        return org.wayround.utils.path.normpath(path)
 
     def check_outside(self, path):
         if self._ssh_git_host.check_is_path_outside(path):
-            raise ValueError("canonicalize: path outside allowed dir")
+            raise ValueError("path is outside allowed dir")
         return
+
+    def check_permission(self, what, path):
+        return self._ssh_git_host.check_permission(
+            self._transport.get_username(), what, path
+            )
 
     def translate_path(self, path):
 
@@ -120,17 +132,23 @@ class SFTPServerInterface(paramiko.sftp_si.SFTPServerInterface):
 
         return ap
 
+    def canonicalize(self, path):
+        return org.wayround.utils.path.normpath(path)
+
     def list_folder(self, path):
-        #        print("list_folder: {}".format(path))
 
         path = self.translate_path(path)
 
         ret = None
 
-        if not os.path.isdir(path):
-            ret = paramiko.SFTP_NO_SUCH_FILE
+        if not self.check_permission('can_read', path):
+            ret = paramiko.SFTP_PERMISSION_DENIED
 
-        if ret == None:
+        if ret is None:
+            if not os.path.isdir(path):
+                ret = paramiko.SFTP_NO_SUCH_FILE
+
+        if ret is None:
 
             ret = []
 
@@ -144,96 +162,92 @@ class SFTPServerInterface(paramiko.sftp_si.SFTPServerInterface):
                 s.filename = i
                 ret.append(s)
 
-        #        print("ret: {}".format(ret))
         return ret
 
     def lstat(self, path):
-        #        print("lstat: {}".format(path))
         path = self.translate_path(path)
 
         ret = None
 
-        if not os.path.exists(path) and not os.path.islink(path):
-            ret = paramiko.SFTP_NO_SUCH_FILE
+        if not self.check_permission('can_read', path):
+            ret = paramiko.SFTP_PERMISSION_DENIED
 
-        if ret == None:
+        if ret is None:
+            if not os.path.exists(path) and not os.path.islink(path):
+                ret = paramiko.SFTP_NO_SUCH_FILE
+
+        if ret is None:
 
             ret = paramiko.sftp_attr.SFTPAttributes.from_stat(
                 os.stat(path, follow_symlinks=False)
                 )
             ret.filename = os.path.basename(path)
 
-        #        print("ret: {}".format(ret))
         return ret
 
     def mkdir(self, path, attr):
-        #        print("mkdir: {}, {}".format(path, attr))
         path = self.translate_path(path)
 
         ret = None
-        try:
-            os.mkdir(path)
-        except:
-            ret = paramiko.SFTP_NO_SUCH_FILE
-        else:
-            ret = paramiko.SFTP_OK
 
-        #        print("ret: {}".format(ret))
+        if not self.check_permission('can_write', path):
+            ret = paramiko.SFTP_PERMISSION_DENIED
+
+        if ret is None:
+            try:
+                os.mkdir(path)
+            except:
+                ret = paramiko.SFTP_NO_SUCH_FILE
+            else:
+                ret = paramiko.SFTP_OK
+
         return ret
 
     def open(self, path, flags, attr):
-        #        print("open: {}, {}, {}".format(path, repr(flags), repr(attr))
-        #              )
-        #        for i in [
-        #            'O_RDONLY',
-        #            'O_WRONLY',
-        #            'O_RDWR',
-        #            'O_APPEND',
-        #            'O_CREAT',
-        #            'O_TRUNC',
-        #            'O_EXCL'
-        #            ]:
-        #            if flags & getattr(os, i) != 0:
-        #                print('  {}'.format(i))
         path = self.translate_path(path)
 
         ret = None
 
-        #if not os.path.exists(path):
-        #    if flags & os.O_CREAT == 0:
-        #        ret = paramiko.SFTP_NO_SUCH_FILE
+        # TODO: do we still need next todo?
+        # TODO: upgrade to allow read-only access
+        if not self.check_permission('can_write', path):
+            ret = paramiko.SFTP_PERMISSION_DENIED
 
-        if ret == None:
+        if ret is None:
             ret = SFTPHandle(path, flags, attr)
 
-        #        print("ret: {}".format(ret))
         return ret
 
     def readlink(self, path):
-        #        print("readlink: {}".format(path))
         path = self.translate_path(path)
 
         ret = None
 
-        if not os.path.exists(path):
-            ret = paramiko.SFTP_NO_SUCH_FILE
+        if not self.check_permission('can_read', path):
+            ret = paramiko.SFTP_PERMISSION_DENIED
 
-        if ret == None:
+        if ret is None:
+            if not os.path.exists(path):
+                ret = paramiko.SFTP_NO_SUCH_FILE
+
+        if ret is None:
             ret = os.readlink(path)
 
-        #        print("ret: {}".format(ret))
         return ret
 
     def remove(self, path):
-        #        print("remove: {}".format(path))
         path = self.translate_path(path)
 
         ret = None
 
-        if not os.path.isfile(path) and not os.path.islink(path):
-            ret = paramiko.SFTP_NO_SUCH_FILE
+        if not self.check_permission('can_write', path):
+            ret = paramiko.SFTP_PERMISSION_DENIED
 
-        if ret == None:
+        if ret is None:
+            if not os.path.isfile(path) and not os.path.islink(path):
+                ret = paramiko.SFTP_NO_SUCH_FILE
+
+        if ret is None:
             try:
                 os.unlink(path)
             except:
@@ -241,24 +255,29 @@ class SFTPServerInterface(paramiko.sftp_si.SFTPServerInterface):
             else:
                 ret = paramiko.SFTP_OK
 
-        #        print("ret: {}".format(ret))
         return ret
 
     def rename(self, oldpath, newpath):
-        #        print("rename: {}, {}".format(oldpath, newpath))
 
         oldpath = self.translate_path(oldpath)
         newpath = self.translate_path(newpath)
 
         ret = None
 
-        if not os.path.isfile(oldpath):
-            ret = paramiko.SFTP_NO_SUCH_FILE
+        if (not self.check_permission('can_write', oldpath)
+                or not self.check_permission('can_write', newpath)):
 
-        if os.path.exists(newpath) or os.path.islink(newpath):
-            ret = paramiko.SFTP_FAILURE
+            ret = paramiko.SFTP_PERMISSION_DENIED
 
-        if ret == None:
+        if ret is None:
+            if not os.path.isfile(oldpath):
+                ret = paramiko.SFTP_NO_SUCH_FILE
+
+        if ret is None:
+            if os.path.exists(newpath) or os.path.islink(newpath):
+                ret = paramiko.SFTP_FAILURE
+
+        if ret is None:
             try:
                 os.rename(oldpath, newpath)
             except:
@@ -266,19 +285,21 @@ class SFTPServerInterface(paramiko.sftp_si.SFTPServerInterface):
             else:
                 ret = paramiko.SFTP_OK
 
-        #        print("ret: {}".format(ret))
         return ret
 
     def rmdir(self, path):
-        #        print("rmdir: {}".format(path))
         path = self.translate_path(path)
 
         ret = None
 
-        if not os.path.isdir(path):
-            ret = paramiko.SFTP_NO_SUCH_FILE
+        if not self.check_permission('can_write', path):
+            ret = paramiko.SFTP_PERMISSION_DENIED
 
-        if ret == None:
+        if ret is None:
+            if not os.path.isdir(path):
+                ret = paramiko.SFTP_NO_SUCH_FILE
+
+        if ret is None:
             try:
                 os.rmdir(path)
             except:
@@ -286,40 +307,45 @@ class SFTPServerInterface(paramiko.sftp_si.SFTPServerInterface):
             else:
                 ret = paramiko.SFTP_OK
 
-        #        print("ret: {}".format(ret))
         return ret
 
     def stat(self, path):
-        #        print("stat: {}".format(path))
 
         path = self.translate_path(path)
 
         ret = None
 
-        if not os.path.exists(path) and not os.path.islink(path):
-            ret = paramiko.SFTP_NO_SUCH_FILE
+        if not self.check_permission('can_read', path):
+            ret = paramiko.SFTP_PERMISSION_DENIED
 
-        if ret == None:
+        if ret is None:
+            if not os.path.exists(path) and not os.path.islink(path):
+                ret = paramiko.SFTP_NO_SUCH_FILE
+
+        if ret is None:
 
             ret = paramiko.sftp_attr.SFTPAttributes.from_stat(
                 os.stat(path, follow_symlinks=True)
                 )
             ret.filename = os.path.basename(path)
 
-#        print("ret: {}".format(ret))
         return ret
 
     def symlink(self, target_path, path):
-#        print("symlink: {}, {}".format(target_path, path))
 
         path = self.translate_path(path)
 
         ret = None
 
-        if os.path.exists(path) or os.path.islink(path):
-            ret = paramiko.SFTP_FAILURE
+        if not self.check_permission('can_write', path):
 
-        if ret == None:
+            ret = paramiko.SFTP_PERMISSION_DENIED
+
+        if ret is None:
+            if os.path.exists(path) or os.path.islink(path):
+                ret = paramiko.SFTP_FAILURE
+
+        if ret is None:
             try:
                 os.symlink(target_path, path)
             except:
@@ -327,7 +353,6 @@ class SFTPServerInterface(paramiko.sftp_si.SFTPServerInterface):
             else:
                 ret = paramiko.SFTP_OK
 
-        #        print("ret: {}".format(ret))
         return ret
 
 
@@ -459,18 +484,42 @@ def channel_exec_cmd(channel, cmd):
 
 class ServerInterface(paramiko.server.ServerInterface):
 
-    def __init__(self, ssh_git_host):
+    def __init__(self, ssh_git_host, transport):
+        """
+        :param SSHGitHost ssh_git_host:
+        :param paramiko.transport.Transport transport:
+        """
 
         self._ssh_git_host = ssh_git_host
+        self._transport = transport
 
     def check_outside(self, path):
         return self._ssh_git_host.check_is_path_outside(path)
+
+    def get_levels(self, path):
+        return get_levels(self.get_working_root_dir(), path)
+
+    def check_permission(self, what, path, must_be_repository=False):
+
+        ret = False
+
+        if must_be_repository:
+
+            levels = self.get_levels(path)
+            if levels[1] is None:
+                ret = False
+            else:
+                ret = self._ssh_git_host.check_permission(
+                    self._transport.get_username(), what, path
+                    )
+
+        return ret
 
     def check_auth_publickey(self, username, key):
 
         ret = paramiko.AUTH_FAILED
 
-        user_dir = self._ssh_git_host.user_get_path(username)
+        user_dir = self._ssh_git_host.home_get_path(username)
 
         error = False
 
@@ -501,8 +550,10 @@ class ServerInterface(paramiko.server.ServerInterface):
 
         prog = parsed_cmd[0]
         if prog in [
-            'git-upload-pack', 'git-receive-pack', 'git-upload-archive'
-            ]:
+                'git-receive-pack',
+                'git-upload-pack',
+                'git-upload-archive'
+                ]:
 
             np = org.wayround.utils.path.join(
                 self._ssh_git_host.get_working_root_dir(),
@@ -511,13 +562,38 @@ class ServerInterface(paramiko.server.ServerInterface):
             if self.check_outside(np):
                 ret = False
             else:
-                cmd = [prog, np]
-                ret = True
+
+                perm = False
+
+                if prog in [
+                        'git-upload-pack',
+                        'git-upload-archive'
+                        ]:
+
+                    perm = self.check_permission(
+                        'can_read', np, must_be_repo=True
+                        )
+
+                elif prog == 'git-receive-pack':
+
+                    perm = self.check_permission(
+                        'can_write', np, must_be_repo=True
+                        )
+
+                else:
+                    raise Exception("programming error")
+
+                if not perm:
+                    ret = False
+                else:
+
+                    cmd = [prog, np]
+                    ret = True
 
         if (prog == 'scp'
             and parsed_cmd[1] == '-r'
-            and parsed_cmd[2] == '-t'
-            and len(parsed_cmd) == 4):
+                and parsed_cmd[2] == '-t'
+                and len(parsed_cmd) == 4):
 
             np = org.wayround.utils.path.join(
                 self._ssh_git_host.get_working_root_dir(),
@@ -526,13 +602,16 @@ class ServerInterface(paramiko.server.ServerInterface):
             if self.check_outside(np):
                 ret = False
             else:
-                cmd = parsed_cmd[:3] + [np]
-                ret = True
+                if self.check_permission(
+                        'can_write', np, must_be_repo=True
+                        ):
 
-        if ret == True:
+                    cmd = parsed_cmd[:3] + [np]
+                    ret = True
+
+        if ret is True:
 
             logging.debug("Starting channel_exec_cmd thread")
-            print("exec: {}".format(cmd))
             threading.Thread(
                 target=channel_exec_cmd,
                 args=(channel, cmd)
@@ -545,7 +624,6 @@ class ServerInterface(paramiko.server.ServerInterface):
 
     def check_channel_request(self, kind, chanid):
         ret = paramiko.OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED
-        #        print("check_channel_request({}, {})".format(kind, chanid))
         if kind == 'session':
             ret = paramiko.OPEN_SUCCEEDED
         return ret
@@ -554,20 +632,21 @@ class ServerInterface(paramiko.server.ServerInterface):
 class SSHGitHost:
 
     def __init__(
-        self,
-        working_root_dir,
-        host_addr='localhost',
-        host_port='2121',
-        host_key_privat_rsa_filename='host_keys/host_rsa'
-        ):
+            self,
+            working_root_dir,
+            host_addr='localhost',
+            host_port='2121',
+            host_key_privat_rsa_filename='host_keys/host_rsa'
+            ):
 
         self._socket = None
 
         self._host_addr = host_addr
         self._host_port = host_port
 
-        # TODO: get realpath or not?
-        self._working_root_dir = working_root_dir
+        # TODO: get realpath!?
+        self._working_root_dir = \
+            org.wayround.utils.path.realpath(working_root_dir)
 
         self._host_key_privat_rsa_filename = host_key_privat_rsa_filename
         self._rsa_private_host_key = None
@@ -578,33 +657,40 @@ class SSHGitHost:
 
         self.callbacks = None
 
-        # self._server_interface = ServerInterface(self)
-
         return
 
     def get_working_root_dir(self):
         return self._working_root_dir
 
     def check_is_path_outside(self, path):
-        ret = False
-        if not org.wayround.utils.path.is_subpath(
+        return not org.wayround.utils.path.is_subpath_real(
             path,
             self.get_working_root_dir()
-            ):
-            ret = True
+            )
+
+    def get_access_right(self, subject_jid, path, must_be_repo=False):
+        # TODO: remove in favor of check_permission
+        return 'none'
+
+    def check_permission(self, subject_jid, what, path):
+
+        home_level, repo_level, rest = self.get_levels(path)
+
+        ret = self.callbacks['check_permission'](
+            subject_jid,
+            what,
+            home_level,
+            repo_level
+            )
+
         return ret
 
-    def get_access_right(
-        self, subject_jid, home_level=None, repo_level=None
-        ):
-
-        ret = False
-
-        return ret
+    def get_levels(self, path):
+        return get_levels(self.get_working_root_dir(), path)
 
     def start(self):
 
-        if self._acceptor_thread == None:
+        if self._acceptor_thread is None:
             self._acceptor_thread = 1
 
             self._stop_flag = False
@@ -625,7 +711,7 @@ class SSHGitHost:
 
     def stop(self):
         self._stop_flag = True
-        while self._acceptor_thread != None:
+        while self._acceptor_thread is not None:
             time.sleep(0.2)
         self._socket.shutdown(socket.SHUT_RDWR)
         self._socket.close()
@@ -634,13 +720,13 @@ class SSHGitHost:
 
     def set_callbacks(self, cbs):
         errors = False
-        if cbs != None:
+        if cbs is not None:
 
             if not isinstance(cbs, dict):
                 raise TypeError("`cbs' can be None or dict")
 
             for i in ['check_key']:
-                if not i in cbs or not callable(cbs[i]):
+                if i not in cbs or not callable(cbs[i]):
                     logging.error("`{}' must be in callbacks".format(i))
                     errors = True
             if errors:
@@ -671,7 +757,7 @@ class SSHGitHost:
 
                 accepted = self._socket.accept()
 
-            if accepted != None:
+            if accepted is not None:
                 threading.Thread(
                     name="_accepted processor for `{}' from `{}'".format(
                         accepted[0],
@@ -695,15 +781,19 @@ class SSHGitHost:
             'sftp',
             paramiko.sftp_server.SFTPServer,
             sftp_si=SFTPServerInterface,
-            ssh_git_host=self
+            ssh_git_host=self,
+            transport=paramiko_transport
             )
 
         paramiko_transport.start_server(
-            server=ServerInterface(self)
+            server=ServerInterface(
+                self,
+                paramiko_transport
+                )
             )
         return
 
-    def user_validate_name(self, name):
+    def home_validate_name(self, name):
         if not isinstance(name, str):
             raise TypeError("user name value must be str")
 
@@ -746,7 +836,7 @@ class SSHGitHost:
 
         return
 
-    def user_list(self):
+    def home_list(self):
 
         path = self.get_working_root_dir()
 
@@ -764,66 +854,66 @@ class SSHGitHost:
 
         return ret
 
-    def user_is_exists(self, user_name):
+    def home_is_exists(self, home):
 
-        self.user_validate_name(user_name)
+        self.home_validate_name(home)
 
-        return os.path.isdir(self.user_get_path(user_name))
+        return os.path.isdir(self.home_get_path(home))
 
-    def user_create(self, user_name):
+    def home_create(self, home):
 
-        self.user_validate_name(user_name)
+        self.home_validate_name(home)
 
         ret = 0
 
-        if self.user_is_exists(user_name):
+        if self.home_is_exists(home):
             ret = 2
         else:
-            path = self.user_get_path(user_name)
+            path = self.home_get_path(home)
             if not os.path.isdir(path):
                 try:
                     os.makedirs(path)
                 except:
                     pass
-            if not self.user_is_exists(user_name):
+            if not self.home_is_exists(home):
                 ret = 1
         return ret
 
-    def user_delete(self, user_name):
+    def home_delete(self, home):
 
-        self.user_validate_name(user_name)
+        self.home_validate_name(home)
 
         ret = 0
-        if not self.user_is_exists(user_name):
+        if not self.home_is_exists(home):
             ret = 2
         else:
             try:
-                shutil.rmtree(self.user_get_path(user_name))
+                shutil.rmtree(self.home_get_path(home))
             except:
                 pass
-            if self.user_is_exists(user_name):
+            if self.home_is_exists(home):
                 ret = 1
         return ret
 
-    def user_get_path(self, user_name):
+    def home_get_path(self, home):
 
-        self.user_validate_name(user_name)
+        self.home_validate_name(home)
 
         ret = org.wayround.utils.path.join(
             self._working_root_dir,
-            user_name
+            home
             )
 
         return ret
 
-    def repository_list(self, user_name):
+    def repository_list(self, home):
 
-        self.user_validate_name(user_name)
+        self.home_validate_name(home)
 
         ret = None
 
-        if self.user_is_exists(user_name):
-            path = self.user_get_path(user_name)
+        if self.home_is_exists(home):
+            path = self.home_get_path(home)
             dirs = os.listdir(path)
 
             ret = []
@@ -838,67 +928,91 @@ class SSHGitHost:
 
         return ret
 
-    def repository_get_path(self, user_name, repository_name):
+    def repository_get_path(self, home, repository):
 
-        self.user_validate_name(user_name)
-        self.repository_validate_name(repository_name)
+        self.home_validate_name(home)
+        self.repository_validate_name(repository)
 
         ret = org.wayround.utils.path.join(
-            self.user_get_path(user_name),
-            repository_name
+            self.home_get_path(home),
+            repository
             )
 
         return ret
 
-    def repository_is_exists(self, user_name, repository_name):
+    def repository_is_exists(self, home, repository):
 
-        self.user_validate_name(user_name)
-        self.repository_validate_name(repository_name)
+        self.home_validate_name(home)
+        self.repository_validate_name(repository)
 
         return os.path.isdir(
-            self.repository_get_path(user_name, repository_name)
+            self.repository_get_path(home, repository)
             )
 
-    def repository_create(self, user_name, repository_name):
+    def repository_create(self, home, repository):
 
-        self.user_validate_name(user_name)
-        self.repository_validate_name(repository_name)
+        self.home_validate_name(home)
+        self.repository_validate_name(repository)
 
         ret = 0
 
-        if self.repository_is_exists(user_name, repository_name):
+        if self.repository_is_exists(home, repository):
             ret = 1
         else:
-            if not self.user_is_exists(user_name):
+            if not self.home_is_exists(home):
                 ret = 2
             else:
-                path = self.repository_get_path(user_name, repository_name)
+                path = self.repository_get_path(home, repository)
                 p = subprocess.Popen(['git', 'init', '--bare', path])
                 ret = p.wait()
 
         return ret
 
-    def repository_delete(self, user_name, repository_name):
+    def repository_delete(self, home, repository):
 
-        self.user_validate_name(user_name)
-        self.repository_validate_name(repository_name)
+        self.home_validate_name(home)
+        self.repository_validate_name(repository)
 
         ret = 0
 
-        if not self.repository_is_exists(user_name, repository_name):
+        if not self.repository_is_exists(home, repository):
             ret = 1
         else:
-            if not self.user_is_exists(user_name):
+            if not self.home_is_exists(home):
                 ret = 2
             else:
                 try:
                     shutil.rmtree(
-                        self.repository_get_path(user_name, repository_name)
+                        self.repository_get_path(home, repository)
                         )
                 except:
                     pass
 
-                if self.repository_is_exists(user_name, repository_name):
+                if self.repository_is_exists(home, repository):
                     ret = 3
 
         return ret
+
+
+def get_levels(root_path, path):
+
+    sub_path = org.wayround.utils.path.split(
+        org.wayround.utils.path.get_subpath(
+            root_path,
+            path
+            )
+        )
+
+    home_level = None
+    repo_level = None
+    rest = None
+
+    len_sub_path = len(sub_path)
+    if len_sub_path > 0:
+        home_level = sub_path[0]
+
+    if len_sub_path > 1:
+        repo_level = sub_path[1]
+        rest = sub_path[2:]
+
+    return home_level, repo_level, rest
