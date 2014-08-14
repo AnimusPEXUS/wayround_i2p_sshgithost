@@ -112,7 +112,7 @@ class SFTPServerInterface(paramiko.sftp_si.SFTPServerInterface):
 
     def check_outside(self, path):
         if self._ssh_git_host.check_is_path_outside(path):
-            raise ValueError("path is outside allowed dir")
+            raise ValueError("`path' is outside allowed dir")
         return
 
     def check_permission(self, what, path):
