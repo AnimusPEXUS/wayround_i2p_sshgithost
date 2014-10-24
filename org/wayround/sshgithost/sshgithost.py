@@ -35,6 +35,8 @@ import org.wayround.xmpp.core
 #                              +--reponame_1.git
 #                              +--...
 #                              +--reponame_x.git
+
+
 class SFTPHandle(paramiko.sftp_handle.SFTPHandle):
 
     def __init__(self, path, flags, attr):
@@ -85,8 +87,6 @@ class SFTPHandle(paramiko.sftp_handle.SFTPHandle):
             os.write(self._fobj, data)
         except:
             logging.exception("Error")
-            sys.stderr.flush()
-            sys.stdout.flush()
             ret = paramiko.SFTP_FAILURE
         else:
             ret = paramiko.SFTP_OK
@@ -541,9 +541,11 @@ def channel_exec_cmd(channel, cmd):
         bufsize=0
         )
 
-    sock_type = 'socket'
+    sock_type = 'sync'
+    sock_selectable=True
     if channel.gettimeout() == 0:
-        sock_type = 'socket-nb'
+        sock_type = 'async'
+        sock_selectable=False
 
     if debug:
         logging.debug("socket type is: {}".format(sock_type))
@@ -554,8 +556,10 @@ def channel_exec_cmd(channel, cmd):
         threaded=True,
         read_method_name='read',
         write_method_name='send',
-        read_type='pipe',
+        read_type='sync',
+        read_selectable=True,
         write_type=sock_type,
+        write_selectable=sock_selectable,
         exit_on_input_eof=True,
         flush_after_each_write=False,
         flush_on_input_eof=False,
@@ -580,7 +584,8 @@ def channel_exec_cmd(channel, cmd):
         read_method_name='recv',
         write_method_name='write',
         read_type=sock_type,
-        write_type='pipe',
+        read_selectable=sock_selectable,
+        write_type='sync',
         exit_on_input_eof=True,
         flush_after_each_write=False,
         flush_on_input_eof=True,
@@ -604,8 +609,10 @@ def channel_exec_cmd(channel, cmd):
         threaded=True,
         read_method_name='read',
         write_method_name='send_stderr',
-        read_type='pipe',
+        read_type='sync',
+        read_selectable=True,
         write_type=sock_type,
+        write_selectable=sock_selectable,
         exit_on_input_eof=True,
         flush_after_each_write=False,
         flush_on_input_eof=False,
