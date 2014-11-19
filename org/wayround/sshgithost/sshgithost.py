@@ -542,10 +542,10 @@ def channel_exec_cmd(channel, cmd):
         )
 
     sock_type = 'sync'
-    sock_selectable=True
+    sock_selectable = True
     if channel.gettimeout() == 0:
         sock_type = 'async'
-        sock_selectable=False
+        sock_selectable = False
 
     if debug:
         logging.debug("socket type is: {}".format(sock_type))
@@ -1192,6 +1192,12 @@ class SSHGitHost:
 
 def get_levels(root_path, path):
 
+    if not isinstance(root_path, str):
+        raise TypeError("`root_path' must be str")
+
+    if not isinstance(path, str):
+        raise TypeError("`path' must be str")
+
     sub_path = org.wayround.utils.path.split(
         org.wayround.utils.path.get_subpath(
             root_path,
@@ -1212,3 +1218,35 @@ def get_levels(root_path, path):
         rest = sub_path[2:]
 
     return home_level, repo_level, rest
+
+
+def check_level_parameters_validness(home_level, repo_level, rest):
+
+    if (
+            (home_level is None and repo_level is None and rest is None)
+            or
+            (home_level is not None and repo_level is None and rest is None)
+            or
+            (home_level is not None and repo_level is not None and rest is None)
+            or
+            (home_level is not None and repo_level is not None and rest is not None)
+            ):
+        pass
+    else:
+        raise ValueError("Invalid parameter values combination")
+    return
+
+
+def join_levels(home_level, repo_level, rest):
+
+    check_level_parameters_validness(home_level, repo_level, rest)
+
+    path = '/'
+
+    for i in [home_level, repo_level, rest]:
+        if i is not None:
+            if not path.endswith('/'):
+                path += '/'
+            path += i.strip('/')
+
+    return path
