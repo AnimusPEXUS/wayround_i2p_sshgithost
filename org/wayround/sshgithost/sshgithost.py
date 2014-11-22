@@ -674,6 +674,8 @@ class ServerInterface(paramiko.server.ServerInterface):
         return self._ssh_git_host.check_is_path_outside(path)
 
     def check_outside_real(self, path):
+        # TODO: is it safe to use this function? need to fink of it's
+        #       usefulness also
         return self._ssh_git_host.check_is_path_outside_real(path)
 
     def get_levels(self, path):
