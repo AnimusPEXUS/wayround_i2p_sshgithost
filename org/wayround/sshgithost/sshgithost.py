@@ -673,6 +673,9 @@ class ServerInterface(paramiko.server.ServerInterface):
     def check_outside(self, path):
         return self._ssh_git_host.check_is_path_outside(path)
 
+    def check_outside_real(self, path):
+        return self._ssh_git_host.check_is_path_outside_real(path)
+
     def get_levels(self, path):
         return get_levels(self._ssh_git_host.get_working_root_dir(), path)
 
@@ -714,6 +717,7 @@ class ServerInterface(paramiko.server.ServerInterface):
         if not error:
             if self._ssh_git_host.callbacks['check_key'](username, key):
                 ret = paramiko.AUTH_SUCCESSFUL
+                # print("user is: {}".format(username))
 
         return ret
 
@@ -759,7 +763,7 @@ class ServerInterface(paramiko.server.ServerInterface):
                 elif prog == 'git-receive-pack':
 
                     perm = self.check_permission(
-                        'can_write', np, must_be_repo=True
+                        'can_write', np
                         )
 
                 else:
