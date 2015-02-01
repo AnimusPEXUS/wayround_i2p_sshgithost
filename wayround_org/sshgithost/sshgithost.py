@@ -17,9 +17,9 @@ import paramiko.sftp_attr
 import paramiko.sftp_si
 import paramiko.transport
 
-import org.wayround.utils.path
-import org.wayround.utils.stream
-import org.wayround.xmpp.core
+import wayround_org.utils.path
+import wayround_org.utils.stream
+import wayround_org.xmpp.core
 
 
 # directories structures:
@@ -123,8 +123,8 @@ class SFTPServerInterface(paramiko.sftp_si.SFTPServerInterface):
 
     def translate_path(self, path):
 
-        ap = org.wayround.utils.path.abspath(
-            org.wayround.utils.path.join(
+        ap = wayround_org.utils.path.abspath(
+            wayround_org.utils.path.join(
                 self._ssh_git_host.get_working_root_dir(),
                 path
                 )
@@ -133,14 +133,14 @@ class SFTPServerInterface(paramiko.sftp_si.SFTPServerInterface):
         return ap
 
     def canonicalize(self, path):
-        return org.wayround.utils.path.normpath(path)
+        return wayround_org.utils.path.normpath(path)
 
     def list_folder(self, path):
 
         ret = None
 
         path = self.translate_path(path)
-        path = org.wayround.utils.path.realpath(path)
+        path = wayround_org.utils.path.realpath(path)
 
         if self.check_outside_real(path):
             ret = paramiko.SFTP_PERMISSION_DENIED
@@ -160,7 +160,7 @@ class SFTPServerInterface(paramiko.sftp_si.SFTPServerInterface):
             for i in os.listdir(path):
                 s = paramiko.sftp_attr.SFTPAttributes.from_stat(
                     os.stat(
-                        org.wayround.utils.path.join(path, i),
+                        wayround_org.utils.path.join(path, i),
                         follow_symlinks=False
                         )
                     )
@@ -175,7 +175,7 @@ class SFTPServerInterface(paramiko.sftp_si.SFTPServerInterface):
 
         path = self.translate_path(path)
 
-        path_paths = org.wayround.utils.path.file_paths(path)
+        path_paths = wayround_org.utils.path.file_paths(path)
 
         if ret is None:
             if self.check_outside_real(path_paths['abs_dir_real']):
@@ -214,7 +214,7 @@ class SFTPServerInterface(paramiko.sftp_si.SFTPServerInterface):
 
         path = self.translate_path(path)
 
-        path_paths = org.wayround.utils.path.file_paths(path)
+        path_paths = wayround_org.utils.path.file_paths(path)
 
         if self.check_outside_real(path_paths['abs_dir_real']):
             ret = paramiko.SFTP_FAILURE
@@ -286,7 +286,7 @@ class SFTPServerInterface(paramiko.sftp_si.SFTPServerInterface):
 
             path = self.translate_path(path)
 
-            path_paths = org.wayround.utils.path.file_paths(path)
+            path_paths = wayround_org.utils.path.file_paths(path)
 
         if ret is None:
             if self.check_outside_real(path_paths['real_full']):
@@ -318,7 +318,7 @@ class SFTPServerInterface(paramiko.sftp_si.SFTPServerInterface):
 
         path = self.translate_path(path)
 
-        path_paths = org.wayround.utils.path.file_paths(path)
+        path_paths = wayround_org.utils.path.file_paths(path)
 
         if ret is None:
             if self.check_outside_real(path_paths['abs_dir_real']):
@@ -343,7 +343,7 @@ class SFTPServerInterface(paramiko.sftp_si.SFTPServerInterface):
 
         path = self.translate_path(path)
 
-        path_paths = org.wayround.utils.path.file_paths(path)
+        path_paths = wayround_org.utils.path.file_paths(path)
 
         if self.check_outside_real(path_paths['abs_dir_real']):
             ret = paramiko.SFTP_FAILURE
@@ -377,8 +377,8 @@ class SFTPServerInterface(paramiko.sftp_si.SFTPServerInterface):
         oldpath = self.translate_path(oldpath)
         newpath = self.translate_path(newpath)
 
-        oldpath_paths = org.wayround.utils.path.file_paths(oldpath)
-        newpath_paths = org.wayround.utils.path.file_paths(newpath)
+        oldpath_paths = wayround_org.utils.path.file_paths(oldpath)
+        newpath_paths = wayround_org.utils.path.file_paths(newpath)
 
         if ret is None:
             if self.check_outside_real(oldpath_paths['abs_dir_real_full']):
@@ -427,7 +427,7 @@ class SFTPServerInterface(paramiko.sftp_si.SFTPServerInterface):
 
         path = self.translate_path(path)
 
-        path_paths = org.wayround.utils.path.file_paths(path)
+        path_paths = wayround_org.utils.path.file_paths(path)
 
         if self.check_outside_real(path_paths['abs_dir_real_full']):
             ret = paramiko.SFTP_FAILURE
@@ -463,7 +463,7 @@ class SFTPServerInterface(paramiko.sftp_si.SFTPServerInterface):
 
         path = self.translate_path(path)
 
-        path_paths = org.wayround.utils.path.file_paths(path)
+        path_paths = wayround_org.utils.path.file_paths(path)
 
         if self.check_outside_real(path_paths['real_full']):
             ret = paramiko.SFTP_FAILURE
@@ -495,7 +495,7 @@ class SFTPServerInterface(paramiko.sftp_si.SFTPServerInterface):
 
         path = self.translate_path(path)
 
-        path_paths = org.wayround.utils.path.file_paths(path)
+        path_paths = wayround_org.utils.path.file_paths(path)
 
         if self.check_outside_real(path_paths['abs_dir_real']):
             ret = paramiko.SFTP_FAILURE
@@ -550,7 +550,7 @@ def channel_exec_cmd(channel, cmd):
     if debug:
         logging.debug("socket type is: {}".format(sock_type))
 
-    t1 = org.wayround.utils.stream.cat(
+    t1 = wayround_org.utils.stream.cat(
         p.stdout,
         channel,
         threaded=True,
@@ -577,7 +577,7 @@ def channel_exec_cmd(channel, cmd):
         verbose=False
         )
 
-    t2 = org.wayround.utils.stream.cat(
+    t2 = wayround_org.utils.stream.cat(
         channel,
         p.stdin,
         threaded=True,
@@ -603,7 +603,7 @@ def channel_exec_cmd(channel, cmd):
         verbose=False
         )
 
-    t3 = org.wayround.utils.stream.cat(
+    t3 = wayround_org.utils.stream.cat(
         p.stderr,
         channel,
         threaded=True,
@@ -743,7 +743,7 @@ class ServerInterface(paramiko.server.ServerInterface):
                 'git-upload-archive'
                 ]:
 
-            np = org.wayround.utils.path.join(
+            np = wayround_org.utils.path.join(
                 self._ssh_git_host.get_working_root_dir(),
                 parsed_cmd[1]
                 )
@@ -802,7 +802,7 @@ class ServerInterface(paramiko.server.ServerInterface):
                 while pth.startswith('/'):
                     pth = pth[1:]
 
-                np = org.wayround.utils.path.join(
+                np = wayround_org.utils.path.join(
                     self._ssh_git_host.get_working_root_dir(),
                     pth
                     )
@@ -855,7 +855,7 @@ class SSHGitHost:
         self._host_port = host_port
 
         self._working_root_dir = \
-            org.wayround.utils.path.realpath(working_root_dir)
+            wayround_org.utils.path.realpath(working_root_dir)
 
         self._host_key_privat_rsa_filename = host_key_privat_rsa_filename
         self._rsa_private_host_key = None
@@ -872,13 +872,13 @@ class SSHGitHost:
         return self._working_root_dir
 
     def check_is_path_outside(self, path):
-        return not org.wayround.utils.path.is_subpath(
+        return not wayround_org.utils.path.is_subpath(
             path,
             self.get_working_root_dir()
             )
 
     def check_is_path_outside_real(self, path):
-        return not org.wayround.utils.path.is_subpath_real(
+        return not wayround_org.utils.path.is_subpath_real(
             path,
             self.get_working_root_dir()
             )
@@ -1009,7 +1009,7 @@ class SSHGitHost:
         jid_is_invalid = False
 
         try:
-            jid = org.wayround.xmpp.core.jid_to_bare(name)
+            jid = wayround_org.xmpp.core.jid_to_bare(name)
         except:
             raise
 
@@ -1047,7 +1047,7 @@ class SSHGitHost:
         ret = []
 
         for i in dirs:
-            joined = org.wayround.utils.path.join(path, i)
+            joined = wayround_org.utils.path.join(path, i)
 
             if os.path.isdir(joined):
                 ret.append(i)
@@ -1101,7 +1101,7 @@ class SSHGitHost:
 
         self.home_validate_name(home)
 
-        ret = org.wayround.utils.path.join(
+        ret = wayround_org.utils.path.join(
             self._working_root_dir,
             home
             )
@@ -1121,7 +1121,7 @@ class SSHGitHost:
             ret = []
 
             for i in dirs:
-                joined = org.wayround.utils.path.join(path, i)
+                joined = wayround_org.utils.path.join(path, i)
 
                 if os.path.isdir(joined):
                     ret.append(i)
@@ -1135,7 +1135,7 @@ class SSHGitHost:
         self.home_validate_name(home)
         self.repository_validate_name(repository)
 
-        ret = org.wayround.utils.path.join(
+        ret = wayround_org.utils.path.join(
             self.home_get_path(home),
             repository
             )
@@ -1204,8 +1204,8 @@ def get_levels(root_path, path):
     if not isinstance(path, str):
         raise TypeError("`path' must be str")
 
-    sub_path = org.wayround.utils.path.split(
-        org.wayround.utils.path.get_subpath(
+    sub_path = wayround_org.utils.path.split(
+        wayround_org.utils.path.get_subpath(
             root_path,
             path
             )
